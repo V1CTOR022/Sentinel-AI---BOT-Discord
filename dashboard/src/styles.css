@@ -1,0 +1,22 @@
+:root{font-family:Inter,system-ui,sans-serif;color:#eef1f8;background:#10131b;font-synthesis:none;text-rendering:optimizeLegibility}
+*{box-sizing:border-box}body{margin:0;min-width:320px;min-height:100vh;background:radial-gradient(circle at 85% 0%,rgba(93,91,214,.18),transparent 28rem),#10131b}
+.container{width:min(1100px,calc(100% - 40px));margin:auto;padding:56px 0}.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.eyebrow{color:#9298ad;font-size:.72rem;letter-spacing:.16em;font-weight:700}h1{font-size:clamp(2.4rem,6vw,4rem);margin:8px 0;letter-spacing:-.06em}h1 span{color:#9290ff}
+.muted{color:#9298ad}.status{color:#b8f4d0;background:rgba(64,190,125,.1);padding:10px 14px;border-radius:99px;font-size:.82rem}
+.metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:38px 0 22px}.metric-card,.panel{background:rgba(25,29,41,.88);border:1px solid #292e40;border-radius:18px}
+.metric-card{padding:24px}.metric-card p{color:#9298ad;margin:0 0 18px;font-size:.9rem}.metric-card strong{font-size:2rem;letter-spacing:-.04em}
+.panel{padding:26px}h2{margin:8px 0 20px;font-size:1.35rem}.channel-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px 0;border-top:1px solid #292e40}
+.channel-row div{display:grid;gap:6px}.channel-row small{color:#9298ad}.channel-row>span{color:#b7b5ff;font-size:.9rem}
+.notice{padding:14px 16px;border:1px solid #705a35;background:#302719;color:#f2d6a4;border-radius:12px}
+footer{color:#737b91;text-align:center;padding:34px 0 0;font-size:.8rem}
+@media(max-width:700px){.container{padding-top:32px}.topbar{align-items:flex-start;flex-direction:column}.metrics-grid{grid-template-columns:1fr}}
+
+.topbar-actions{display:flex;align-items:center;gap:12px}
+button{font:inherit;color:#eef1f8;background:#232838;border:1px solid #333a51;border-radius:10px;padding:10px 16px;cursor:pointer;transition:border-color .15s}
+button:hover:not(:disabled){border-color:#9290ff}
+button:disabled{opacity:.6;cursor:progress}
+.metric-card small{display:block;margin-top:8px;font-size:.78rem}
+.chart{margin:0}
+.chart svg{width:100%;height:auto}
+.chart figcaption{margin-top:8px;font-size:.8rem}
+@media (max-width:720px){.metrics-grid{grid-template-columns:1fr}.topbar{flex-direction:column;align-items:flex-start}}
