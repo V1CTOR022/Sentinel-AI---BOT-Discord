@@ -1,5 +1,9 @@
 # Sentinel AI
 
+[![CI](https://github.com/V1CTOR022/Sentinel-AI---BOT-Discord/actions/workflows/ci.yml/badge.svg)](https://github.com/V1CTOR022/Sentinel-AI---BOT-Discord/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Bot de Discord que transforma a atividade de um servidor em métricas úteis para quem administra: quanto se fala, onde se fala, quem participa e quando o movimento sai do normal. Vem com uma API para consultar esses dados e um dashboard web para visualizá-los.
 
 O projeto é open source (MIT) e roda inteiro na sua máquina. Nenhum serviço pago é obrigatório: a integração de IA é opcional e, sem chave configurada, todo o resto continua funcionando.
