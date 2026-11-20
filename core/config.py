@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULT_AI_MODEL = "claude-opus-5-5"
+DEFAULT_AI_BASE_URL = "https://api.openai.com/v1"
 
 
 class ConfigError(RuntimeError):
@@ -48,13 +48,16 @@ class Settings:
     flood_limit: int
     flood_window_seconds: int
     ai_api_key: str | None
-    ai_model: str
+    ai_model: str | None
+    ai_base_url: str
     api_key: str | None
     dashboard_origins: tuple[str, ...]
 
     @property
     def ai_enabled(self) -> bool:
-        return bool(self.ai_api_key)
+        # Sem modelo não há como chamar o provedor, então a IA fica desligada
+        # em vez de falhar na primeira pergunta.
+        return bool(self.ai_api_key and self.ai_model)
 
     def require_token(self) -> str:
         if not self.discord_token:
@@ -75,7 +78,8 @@ def get_settings() -> Settings:
         flood_limit=_int_with_default("FLOOD_LIMIT", 6),
         flood_window_seconds=_int_with_default("FLOOD_WINDOW_SECONDS", 8),
         ai_api_key=os.getenv("AI_API_KEY") or None,
-        ai_model=os.getenv("AI_MODEL") or DEFAULT_AI_MODEL,
+        ai_model=os.getenv("AI_MODEL") or None,
+        ai_base_url=os.getenv("AI_BASE_URL") or DEFAULT_AI_BASE_URL,
         api_key=os.getenv("SENTINEL_API_KEY") or None,
         dashboard_origins=tuple(item.strip() for item in origins.split(",") if item.strip()),
     )

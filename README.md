@@ -16,7 +16,7 @@ O projeto é open source (MIT) e roda inteiro na sua máquina. Nenhum serviço p
 
 **Relatórios.** O comando `/relatorio` monta um resumo dos últimos dias com total de mensagens, canais mais ativos e a curva diária. Definindo `REPORT_CHANNEL_ID`, o mesmo relatório é publicado automaticamente em intervalos fixos.
 
-**IA opcional.** Com `AI_API_KEY` preenchida, `/ask` responde perguntas e os relatórios ganham um parágrafo de leitura dos números. Os números continuam vindo do banco; o modelo só comenta o que já foi calculado.
+**IA opcional.** Com `AI_API_KEY` e `AI_MODEL` preenchidos, `/ask` responde perguntas e os relatórios ganham um parágrafo de leitura dos números. Os números continuam vindo do banco; o modelo só comenta o que já foi calculado. O projeto não depende de nenhum fornecedor específico: ver [Trocando o provedor de IA](#trocando-o-provedor-de-ia).
 
 **Dashboard.** Página em React com os totais, o gráfico de mensagens por dia e o ranking de canais, atualizando sozinha a cada minuto.
 
@@ -76,7 +76,8 @@ Deixe o bot rodando alguns minutos antes de abrir o dashboard: sem mensagens reg
 | `MOD_LOG_CHANNEL_ID` | não | Canal de texto que recebe os alertas de flood. |
 | `FLOOD_LIMIT` / `FLOOD_WINDOW_SECONDS` | não | Sensibilidade do detector. Padrão: 6 mensagens em 8 segundos. |
 | `REPORT_CHANNEL_ID` / `REPORT_INTERVAL_HOURS` | não | Ativa o relatório automático. |
-| `AI_API_KEY` / `AI_MODEL` | não | Habilita `/ask` e o comentário nos relatórios. |
+| `AI_API_KEY` / `AI_MODEL` | não | Habilitam `/ask` e o comentário nos relatórios. Precisa dos dois. |
+| `AI_BASE_URL` | não | Endpoint do provedor de IA. Padrão: `https://api.openai.com/v1`. |
 | `SENTINEL_API_KEY` | não | Se definida, a API exige o header `X-API-Key`. |
 | `DASHBOARD_ORIGINS` | não | Origens liberadas no CORS. |
 
@@ -90,7 +91,22 @@ Valores inválidos (um ID de canal escrito como texto, por exemplo) param o proc
 | `/server` | Informações gerais do servidor. |
 | `/status` | Estado interno do monitoramento. |
 | `/relatorio [dias]` | Resumo da atividade recente, de 1 a 30 dias. |
-| `/ask <pergunta>` | Pergunta ao assistente. Exige `AI_API_KEY`. |
+| `/ask <pergunta>` | Pergunta ao assistente. Exige `AI_API_KEY` e `AI_MODEL`. |
+
+## Trocando o provedor de IA
+
+O serviço fala o formato OpenAI de *chat completions*, que virou padrão de fato. Qualquer provedor que o implemente funciona mudando duas variáveis, sem tocar no código:
+
+| Provedor | `AI_BASE_URL` | `AI_MODEL` (exemplo) |
+| --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `<fornecedor>/<modelo>` |
+| Ollama (local) | `http://localhost:11434/v1` | `llama3.1` |
+
+Com Ollama não existe chave de verdade; preencha `AI_API_KEY=ollama` só para o serviço se considerar configurado. Confirme na documentação do provedor qual nome de modelo está disponível na sua conta, porque esses nomes mudam com o tempo.
+
+Toda a conversa com o provedor está em [`bot/services/ai_service.py`](bot/services/ai_service.py), em duas funções: `answer_question` e `summarize_activity`. Se quiser um formato de API diferente, é o único arquivo a mexer.
 
 ## API
 

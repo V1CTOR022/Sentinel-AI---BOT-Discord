@@ -1,13 +1,19 @@
-"""Integração com a API da Anthropic (Claude).
+"""Integração de IA.
 
-A chave vem de AI_API_KEY. Sem chave configurada, o serviço fica desligado e
-os comandos avisam isso em vez de quebrar — assim o projeto roda inteiro
-mesmo para quem só quer ver as métricas.
+Fala com qualquer API compatível com o formato OpenAI de chat completions,
+que hoje é o padrão de fato: OpenAI, Groq, OpenRouter, DeepSeek, Together,
+LM Studio e Ollama local, entre outros. Trocar de fornecedor é mudar
+AI_BASE_URL e AI_MODEL no .env, sem tocar no código.
+
+Sem AI_API_KEY e AI_MODEL preenchidos o serviço fica desligado e os comandos
+avisam isso, em vez de quebrar.
 """
 
 from __future__ import annotations
 
 import logging
+
+import httpx
 
 from core.config import get_settings
 
@@ -15,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 45.0
 MAX_TOKENS = 900
+TEMPERATURE = 0.4
 
 ASSISTANT_SYSTEM = (
     "Você é o Sentinel, assistente de um servidor Discord. "
@@ -34,55 +41,81 @@ class AIUnavailable(RuntimeError):
     """A integração não está configurada ou o provedor não respondeu."""
 
 
-_client = None
+_client: httpx.AsyncClient | None = None
 
 
 def is_enabled() -> bool:
     return get_settings().ai_enabled
 
 
-def _get_client():
+def _get_client() -> httpx.AsyncClient:
     global _client
-    if _client is not None:
-        return _client
-
-    settings = get_settings()
-    if not settings.ai_api_key:
-        raise AIUnavailable("Defina AI_API_KEY no .env para habilitar a IA.")
-
-    try:
-        from anthropic import AsyncAnthropic
-    except ImportError as error:  # pragma: no cover - depende do ambiente
-        raise AIUnavailable("Instale o pacote anthropic: pip install anthropic") from error
-
-    _client = AsyncAnthropic(api_key=settings.ai_api_key, timeout=REQUEST_TIMEOUT)
+    if _client is None or _client.is_closed:
+        settings = get_settings()
+        _client = httpx.AsyncClient(
+            base_url=settings.ai_base_url.rstrip("/"),
+            headers={"Authorization": f"Bearer {settings.ai_api_key}"},
+            timeout=REQUEST_TIMEOUT,
+        )
     return _client
 
 
-async def _ask_claude(system: str, prompt: str, effort: str = "low") -> str:
-    client = _get_client()
-    settings = get_settings()
+async def aclose() -> None:
+    """Fecha a conexão. Chamado no encerramento do bot."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
 
+
+def _payload(system: str, prompt: str, token_field: str) -> dict:
+    return {
+        "model": get_settings().ai_model,
+        "temperature": TEMPERATURE,
+        token_field: MAX_TOKENS,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    }
+
+
+async def _chat(system: str, prompt: str) -> str:
+    settings = get_settings()
+    if not settings.ai_enabled:
+        raise AIUnavailable("Defina AI_API_KEY e AI_MODEL no .env para habilitar a IA.")
+
+    client = _get_client()
     try:
-        # betas/fallbacks: se um classificador de segurança recusar o pedido,
-        # a própria API repete a chamada em um modelo alternativo.
-        response = await client.beta.messages.create(
-            model=settings.ai_model,
-            max_tokens=MAX_TOKENS,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-            output_config={"effort": effort},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
-        )
-    except Exception as error:
-        logger.exception("Chamada à API de IA falhou.")
+        response = await client.post("/chat/completions", json=_payload(system, prompt, "max_tokens"))
+        # Alguns modelos recentes da OpenAI rejeitam max_tokens e exigem
+        # max_completion_tokens. Uma segunda tentativa resolve sem precisar
+        # saber de antemão qual é o caso.
+        if response.status_code == 400 and "max_completion_tokens" in response.text:
+            response = await client.post(
+                "/chat/completions", json=_payload(system, prompt, "max_completion_tokens")
+            )
+    except httpx.HTTPError as error:
+        logger.exception("Não consegui falar com o provedor de IA.")
         raise AIUnavailable("O provedor de IA não respondeu.") from error
 
-    if response.stop_reason == "refusal":
-        raise AIUnavailable("O modelo preferiu não responder a essa pergunta.")
+    if response.status_code == 401:
+        raise AIUnavailable("O provedor recusou a credencial. Confira AI_API_KEY.")
+    if response.status_code == 404:
+        raise AIUnavailable(f"O provedor não conhece o modelo {settings.ai_model!r}. Confira AI_MODEL.")
+    if response.status_code == 429:
+        raise AIUnavailable("Limite de uso do provedor atingido. Tente de novo em instantes.")
+    if response.status_code >= 400:
+        logger.error("Provedor de IA respondeu %s: %s", response.status_code, response.text[:400])
+        raise AIUnavailable("O provedor de IA devolveu um erro.")
 
-    text = "\n".join(block.text for block in response.content if block.type == "text").strip()
+    try:
+        text = response.json()["choices"][0]["message"]["content"]
+    except (ValueError, KeyError, IndexError, TypeError) as error:
+        logger.error("Resposta em formato inesperado: %s", response.text[:400])
+        raise AIUnavailable("Não entendi a resposta do provedor de IA.") from error
+
+    text = (text or "").strip()
     if not text:
         raise AIUnavailable("O provedor devolveu uma resposta vazia.")
     return text
@@ -90,7 +123,7 @@ async def _ask_claude(system: str, prompt: str, effort: str = "low") -> str:
 
 async def answer_question(question: str) -> str:
     """Responde uma pergunta livre feita pelo comando /ask."""
-    return await _ask_claude(ASSISTANT_SYSTEM, question, effort="low")
+    return await _chat(ASSISTANT_SYSTEM, question)
 
 
 async def summarize_activity(report: str) -> str:
@@ -100,4 +133,4 @@ async def summarize_activity(report: str) -> str:
         "Faça uma leitura do que elas indicam sobre o engajamento.\n\n"
         f"{report}"
     )
-    return await _ask_claude(ANALYST_SYSTEM, prompt, effort="medium")
+    return await _chat(ANALYST_SYSTEM, prompt)

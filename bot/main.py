@@ -9,6 +9,7 @@ import discord
 from discord.ext import commands
 
 from bot.commands.general import GeneralCommands
+from bot.services import ai_service
 from bot.services.activity_service import ActivityRecorder
 from bot.services.moderation_service import FloodDetector
 from core.config import ConfigError, get_settings
@@ -67,6 +68,7 @@ class SentinelBot(commands.Bot):
 
     async def close(self):
         await self.recorder.stop()
+        await ai_service.aclose()
         await close_db()
         await super().close()
 

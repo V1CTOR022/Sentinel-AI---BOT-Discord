@@ -18,7 +18,7 @@ class AICommands(commands.Cog):
     async def ask(self, interaction: discord.Interaction, question: str):
         if not is_enabled():
             await interaction.response.send_message(
-                "A integração de IA não está configurada. Defina `AI_API_KEY` no `.env`.",
+                "A integração de IA não está configurada. Defina `AI_API_KEY` e `AI_MODEL` no `.env`.",
                 ephemeral=True,
             )
             return
